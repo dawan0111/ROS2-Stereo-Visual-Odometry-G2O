@@ -1,7 +1,7 @@
 #ifndef __FRAME_H__
 #define __FRAME_H__
 
-#include "basic_slam/feature.hpp"
+#include "stereo_visual_slam/feature.hpp"
 #include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
 
@@ -14,8 +14,8 @@ public:
   Frame();
   void setKeyFrame();
   const int32_t frameId;
-  cv::Mat image;
-  cv::Mat grayImage;
+  cv::Mat imageL;
+  cv::Mat imageR;
   std::vector<std::shared_ptr<Feature>> featurePtrs;
   Sophus::SE3d T_wc; // Cam pose in World coordinate
   Sophus::SE3d T_d;  // PrevFrame -> CurrentFrame

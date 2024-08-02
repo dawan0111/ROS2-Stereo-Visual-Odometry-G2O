@@ -1,7 +1,7 @@
 #ifndef __MAP_POINT_H__
 #define __MAP_POINT_H__
 
-#include "basic_slam/feature.hpp"
+#include "stereo_visual_slam/feature.hpp"
 #include <Eigen/Dense>
 #include <iostream>
 #include <memory>

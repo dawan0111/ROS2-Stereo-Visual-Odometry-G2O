@@ -26,6 +26,13 @@ find_package(Sophus REQUIRED)
 
 add_library(${library_name}
   src/stereo_visual_slam.cpp
+  src/frontend.cpp
+  src/map_point.cpp
+  src/map.cpp
+  src/frame.cpp
+  src/feature.cpp
+  src/config.cpp
+  src/pinhole_camera.cpp
 )
 
 target_link_libraries(${library_name}

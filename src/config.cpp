@@ -1,1 +1,1 @@
-#include "basic_slam/config.hpp"
+#include "stereo_visual_slam/config.hpp"

@@ -1,4 +1,4 @@
-#include "basic_slam/frame.hpp"
+#include "stereo_visual_slam/frame.hpp"
 namespace StereoSLAM {
 int32_t Frame::nextFrameId = 0;
 

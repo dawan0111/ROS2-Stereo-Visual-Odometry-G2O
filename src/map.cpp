@@ -1,4 +1,4 @@
-#include "basic_slam/map.hpp"
+#include "stereo_visual_slam/map.hpp"
 
 namespace StereoSLAM {
 Map::Map() {}
