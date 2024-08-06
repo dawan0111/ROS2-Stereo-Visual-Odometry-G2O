@@ -11,6 +11,7 @@ class Frame;
 class MapPoint;
 class Feature {
 public:
+  using Ptr = std::shared_ptr<Feature>;
   Feature(const std::shared_ptr<Frame> frame, const cv::Point2f &point);
   Feature(const std::shared_ptr<Frame> frame, const cv::Point2f &point, const cv::Point2f &prevPoint);
 
@@ -19,6 +20,7 @@ public:
   const std::weak_ptr<Frame> framePtr;
   std::weak_ptr<MapPoint> mapPointPtr;
   bool isInlier = true;
+  bool isLeftFeature = false;
 };
 } // namespace StereoSLAM
 

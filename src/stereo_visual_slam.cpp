@@ -17,8 +17,8 @@ void StereoVisualSLAM::ImageCallback(const Image::ConstSharedPtr &leftImage, con
   auto CVImageL = cv_bridge::toCvCopy(leftImage, leftImage->encoding)->image;
   auto CVImageR = cv_bridge::toCvCopy(rightImage, rightImage->encoding)->image;
 
-  cv::cvtColor(frame->imageL, CVImageL, cv::COLOR_BGR2GRAY);
-  cv::cvtColor(frame->imageR, CVImageR, cv::COLOR_BGR2GRAY);
+  cv::cvtColor(CVImageL, frame->imageL, cv::COLOR_BGR2GRAY);
+  cv::cvtColor(CVImageR, frame->imageR, cv::COLOR_BGR2GRAY);
 
   frontend_->step(frame);
 }

@@ -17,6 +17,7 @@ public:
   cv::Mat imageL;
   cv::Mat imageR;
   std::vector<std::shared_ptr<Feature>> featurePtrs;
+  std::vector<std::shared_ptr<Feature>> rightFeaturePtrs;
   Sophus::SE3d T_wc; // Cam pose in World coordinate
   Sophus::SE3d T_d;  // PrevFrame -> CurrentFrame
   bool isKeyFrame = false;
