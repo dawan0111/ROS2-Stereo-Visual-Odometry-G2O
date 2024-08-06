@@ -27,9 +27,14 @@ public:
 
 private:
   void ImageCallback(const Image::ConstSharedPtr &leftImage, const Image::ConstSharedPtr &rightImage);
+  void debugImagePublish(const std::shared_ptr<Frame> &frame);
+
+private:
   std::shared_ptr<message_filters::Subscriber<Image>> leftImageSub_;
   std::shared_ptr<message_filters::Subscriber<Image>> rightImageSub_;
   std::shared_ptr<message_filters::Synchronizer<ImageSyncPolicy>> syncStereo_;
+
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debugImagePub_;
 
   std::shared_ptr<Frontend> frontend_;
 };

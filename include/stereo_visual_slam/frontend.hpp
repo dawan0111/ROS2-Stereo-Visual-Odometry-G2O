@@ -2,6 +2,11 @@
 #define __FRONTEND_H__
 
 #include "stereo_visual_slam/frame.hpp"
+#include "stereo_visual_slam/map.hpp"
+#include "stereo_visual_slam/map_point.hpp"
+#include "stereo_visual_slam/pinhole_camera.hpp"
+#include <Eigen/Dense>
+#include <opencv2/opencv.hpp>
 namespace StereoSLAM {
 
 enum class Status { INIT, TRACKING, LOSS };
@@ -22,6 +27,8 @@ private:
 private:
   Status status = Status::INIT;
   std::shared_ptr<Frame> currentFrame_;
+  std::shared_ptr<PinholeCamera> camera_;
+  std::shared_ptr<Map> map_;
 };
 } // namespace StereoSLAM
 
