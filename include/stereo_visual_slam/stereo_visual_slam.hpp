@@ -4,6 +4,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "stereo_visual_slam/frame.hpp"
 #include "stereo_visual_slam/frontend.hpp"
+#include "stereo_visual_slam/map.hpp"
+#include "stereo_visual_slam/pinhole_camera.hpp"
+#include "stereo_visual_slam/viewer.hpp"
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
@@ -17,7 +20,6 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_ros/transform_broadcaster.h>
-
 namespace StereoSLAM {
 class StereoVisualSLAM : public rclcpp::Node {
 public:
@@ -27,16 +29,21 @@ public:
 
 private:
   void ImageCallback(const Image::ConstSharedPtr &leftImage, const Image::ConstSharedPtr &rightImage);
-  void debugImagePublish(const std::shared_ptr<Frame> &frame);
 
 private:
   std::shared_ptr<message_filters::Subscriber<Image>> leftImageSub_;
   std::shared_ptr<message_filters::Subscriber<Image>> rightImageSub_;
   std::shared_ptr<message_filters::Synchronizer<ImageSyncPolicy>> syncStereo_;
 
+  rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debugImagePub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudPub_;
+
+  std::unique_ptr<Viewer> viewer_;
 
   std::shared_ptr<Frontend> frontend_;
+  std::shared_ptr<Map> map_;
+  std::shared_ptr<PinholeCamera> stereoCam_;
 };
 } // namespace StereoSLAM
 

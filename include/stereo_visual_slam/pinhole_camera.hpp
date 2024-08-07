@@ -7,7 +7,7 @@
 namespace StereoSLAM {
 class PinholeCamera {
 public:
-  PinholeCamera(double fx, double fy, double cx, double cy);
+  PinholeCamera(double fx, double fy, double cx, double cy, double baseline);
   Eigen::Vector3d pixel2camera(const Eigen::Vector2d &p_p, double depth = 1.0);
   cv::Point2f pixel2camera(const cv::Point2f &point);
   Eigen::Vector2d world2pixel(const Eigen::Vector3d &p_w,
@@ -17,12 +17,14 @@ public:
                                const Sophus::SE3d &T_c_w);
 
   Eigen::Vector2d camera2pixel(const Eigen::Vector3d &p_c);
+  Eigen::Vector3d pixel2World(const cv::Point2f &pointL, const cv::Point2f &pointR);
 
 private:
   double fx_;
   double fy_;
   double cx_;
   double cy_;
+  double baseline_;
 };
 } // namespace StereoSLAM
 

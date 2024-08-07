@@ -12,7 +12,7 @@ namespace StereoSLAM {
 enum class Status { INIT, TRACKING, LOSS };
 class Frontend {
 public:
-  Frontend();
+  Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map);
   bool step(std::shared_ptr<Frame> frame);
 
 private:
@@ -27,7 +27,7 @@ private:
 private:
   Status status = Status::INIT;
   std::shared_ptr<Frame> currentFrame_;
-  std::shared_ptr<PinholeCamera> camera_;
+  std::shared_ptr<PinholeCamera> stereoCam_;
   std::shared_ptr<Map> map_;
 };
 } // namespace StereoSLAM
