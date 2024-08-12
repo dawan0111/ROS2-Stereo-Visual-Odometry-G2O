@@ -32,6 +32,7 @@ void Frontend::tracking() {
 
 void Frontend::init() {
   currentFrame_->T_wc = Sophus::SE3d();
+  currentFrame_->T_d = Sophus::SE3d();
   createLeftFeature();
   matchInRight();
   createMapPoint();
@@ -186,7 +187,9 @@ void Frontend::createMapPoint() {
 }
 
 int16_t Frontend::estimatePose() {
-  cv::Mat rVec, tVec;
+  cv::Mat rVec = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 0.0);
+  cv::Mat tVec = (cv::Mat_<double>(3, 1) << prevFrame_->T_wc.translation().x(), prevFrame_->T_wc.translation().y(),
+                  prevFrame_->T_wc.translation().z());
   std::vector<int> inliers;
   std::vector<Feature::Ptr> features;
   std::vector<cv::Point3f> worldPoints;
@@ -205,8 +208,8 @@ int16_t Frontend::estimatePose() {
 
   auto K = stereoCam_->getCVIntrinsic();
   auto distCoeffs = stereoCam_->getCVDistCoeff();
-  bool success =
-      cv::solvePnPRansac(worldPoints, pixelPoints, K, distCoeffs, rVec, tVec, false, 100, 2.0, 0.99, inliers);
+  bool success = cv::solvePnPRansac(worldPoints, pixelPoints, K, distCoeffs, rVec, tVec, true, 100, 2.0, 0.99, inliers,
+                                    cv::SOLVEPNP_ITERATIVE);
   if (success) {
     cv::Mat R;
     Eigen::Matrix3d eigenR;
@@ -219,13 +222,11 @@ int16_t Frontend::estimatePose() {
       }
     }
 
-    eigenT(0) = tVec.at<double>(0);
-    eigenT(1) = tVec.at<double>(1);
-    eigenT(2) = tVec.at<double>(2);
+    eigenT(0) = tVec.at<double>(0, 0);
+    eigenT(1) = tVec.at<double>(1, 0);
+    eigenT(2) = tVec.at<double>(2, 0);
 
-    currentFrame_->T_d = Sophus::SE3d(eigenR, eigenT);
-    currentFrame_->T_wc = prevFrame_->T_wc;
-    currentFrame_->T_wc = prevFrame_->T_wc * currentFrame_->T_d;
+    currentFrame_->T_wc = Sophus::SE3d(eigenR, eigenT);
   }
 
   return inliers.size();
