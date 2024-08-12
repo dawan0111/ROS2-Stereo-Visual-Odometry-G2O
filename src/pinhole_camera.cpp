@@ -1,7 +1,7 @@
 #include "stereo_visual_slam/pinhole_camera.hpp"
 namespace StereoSLAM {
-PinholeCamera::PinholeCamera(double fx, double fy, double cx, double cy, double baseline)
-    : fx_(fx), fy_(fy), cx_(cx), cy_(cy), baseline_(baseline) {}
+PinholeCamera::PinholeCamera(double fx, double fy, double cx, double cy, double baseline, Sophus::SE3d pose)
+    : fx_(fx), fy_(fy), cx_(cx), cy_(cy), baseline_(baseline), pose_(pose) {}
 
 Eigen::Vector3d PinholeCamera::pixel2camera(const Eigen::Vector2d &p_p, double depth) {
   Eigen::Vector3d pos = Eigen::Vector3d::Zero();

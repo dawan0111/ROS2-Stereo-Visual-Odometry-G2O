@@ -7,6 +7,7 @@
 #include "stereo_visual_slam/pinhole_camera.hpp"
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
+#include <sophus/se3.hpp>
 namespace StereoSLAM {
 
 enum class Status { INIT, TRACKING, LOSS };
@@ -22,13 +23,16 @@ private:
   int16_t matchInRight();
   int16_t trackingFeature();
   void createMapPoint();
-  void estimatePose();
+  int16_t estimatePose();
 
 private:
-  Status status = Status::INIT;
-  std::shared_ptr<Frame> currentFrame_;
+  Status status_ = Status::INIT;
+  std::shared_ptr<Frame> currentFrame_ = nullptr;
+  std::shared_ptr<Frame> prevFrame_ = nullptr;
   std::shared_ptr<PinholeCamera> stereoCam_;
   std::shared_ptr<Map> map_;
+
+  cv::Ptr<cv::GFTTDetector> gftt_;
 };
 } // namespace StereoSLAM
 

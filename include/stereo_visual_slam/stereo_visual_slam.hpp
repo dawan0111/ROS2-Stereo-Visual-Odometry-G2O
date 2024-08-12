@@ -38,6 +38,7 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debugImagePub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudPub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pathPub_;
 
   std::unique_ptr<Viewer> viewer_;
 

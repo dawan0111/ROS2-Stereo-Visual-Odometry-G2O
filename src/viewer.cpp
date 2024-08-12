@@ -3,12 +3,58 @@
 namespace StereoSLAM {
 Viewer::Viewer(std::shared_ptr<Map> map, std::shared_ptr<PinholeCamera> stereoCam, rclcpp::Clock::SharedPtr clock,
                rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debugImagePub,
-               rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudPub)
-    : map_(map), stereoCam_(stereoCam), clock_(clock), debugImagePub_(debugImagePub), pointCloudPub_(pointCloudPub) {
+               rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudPub,
+               rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pathPub)
+    : map_(map), stereoCam_(stereoCam), clock_(clock), debugImagePub_(debugImagePub), pointCloudPub_(pointCloudPub),
+      pathPub_(pathPub) {
   std::cout << "Viewer Constructor" << std::endl;
 }
 
 void Viewer::update() {
+  mapPointUpdate();
+  pathUpdate();
+}
+
+void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
+  cv::Mat debugImage;
+  auto leftImageCol = frame->imageL.cols;
+
+  cv::hconcat(frame->imageL, frame->imageR, debugImage);
+  cv::cvtColor(debugImage, debugImage, cv::COLOR_GRAY2BGR);
+
+  for (int i = 0; i < frame->featurePtrs.size(); ++i) {
+    auto &keyPoint = frame->featurePtrs[i];
+    if (!keyPoint->isInlier) {
+      cv::circle(debugImage, keyPoint->point, 4, cv::Scalar(0, 0, 255), 1, cv::LINE_4, 0);
+    } else {
+      cv::circle(debugImage, keyPoint->point, 4, cv::Scalar(0, 255, 0), 1, cv::LINE_4, 0);
+    }
+
+    // if (frame->rightFeaturePtrs[i] != nullptr) {
+    //   auto rightPoint = frame->rightFeaturePtrs[i]->point;
+    //   auto rightX = rightPoint.x + leftImageCol;
+    //   auto rightY = rightPoint.y;
+    //   cv::circle(debugImage, cv::Point2f(rightX, rightY), 4, cv::Scalar(0, 255, 0), 1, cv::LINE_4, 0);
+    //   cv::line(debugImage, keyPoint->point, cv::Point2f(rightX, rightY), cv::Scalar(0, 255, 0), 1);
+    // }
+
+    if (keyPoint->mapPointPtr.lock() != nullptr && keyPoint->framePtr.lock() != nullptr) {
+      auto mapPoint = keyPoint->mapPointPtr.lock();
+      auto frame = keyPoint->framePtr.lock();
+      auto uv = stereoCam_->world2pixel(mapPoint->getWorldPoint(), frame->T_wc);
+      auto uvPoint = cv::Point2f(uv(0), uv(1));
+
+      cv::circle(debugImage, uvPoint, 4, cv::Scalar(255, 0, 255), 1, cv::LINE_4, 0);
+      cv::line(debugImage, uvPoint, keyPoint->point, cv::Scalar(0, 255, 255), 1);
+    }
+  }
+
+  auto message = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debugImage).toImageMsg();
+  message->header.stamp = clock_->now();
+  debugImagePub_->publish(*message);
+}
+
+void Viewer::mapPointUpdate() {
   const auto &mapPoints = map_->getActiveMapPoints();
   std::vector<Eigen::Vector3d> vector;
 
@@ -55,42 +101,38 @@ void Viewer::update() {
   pointCloudPub_->publish(pointCloud);
 }
 
-void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
-  cv::Mat debugImage;
-  auto leftImageCol = frame->imageL.cols;
+void Viewer::pathUpdate() {
+  std::vector<geometry_msgs::msg::PoseStamped> poses;
 
-  cv::hconcat(frame->imageL, frame->imageR, debugImage);
-  cv::cvtColor(debugImage, debugImage, cv::COLOR_GRAY2BGR);
+  auto frames = map_->getFrames();
+  for (auto &[id, frame] : frames) {
+    auto updatePose = frame->T_wc;
+    auto worldPose = updatePose;
 
-  for (int i = 0; i < frame->featurePtrs.size(); ++i) {
-    auto &keyPoint = frame->featurePtrs[i];
-    if (!keyPoint->isInlier) {
-      cv::circle(debugImage, keyPoint->point, 4, cv::Scalar(0, 0, 255), 1, cv::LINE_4, 0);
-    } else {
-      cv::circle(debugImage, keyPoint->point, 4, cv::Scalar(0, 255, 0), 1, cv::LINE_4, 0);
-    }
+    geometry_msgs::msg::PoseStamped poseStampMsg;
+    poseStampMsg.header.stamp = clock_->now();
+    poseStampMsg.header.frame_id = "camera_optical_link";
 
-    if (frame->rightFeaturePtrs[i] != nullptr) {
-      auto rightPoint = frame->rightFeaturePtrs[i]->point;
-      auto rightX = rightPoint.x + leftImageCol;
-      auto rightY = rightPoint.y;
-      cv::circle(debugImage, cv::Point2f(rightX, rightY), 4, cv::Scalar(0, 255, 0), 1, cv::LINE_4, 0);
-      cv::line(debugImage, keyPoint->point, cv::Point2f(rightX, rightY), cv::Scalar(0, 255, 0), 1);
-    }
+    geometry_msgs::msg::Pose pose;
+    Eigen::Quaterniond q(worldPose.rotationMatrix());
+    pose.orientation.x = q.x();
+    pose.orientation.y = q.y();
+    pose.orientation.z = q.z();
+    pose.orientation.w = q.w();
 
-    // if (keyPoint->mapPointPtr.lock() != nullptr && keyPoint->framePtr.lock() != nullptr) {
-    //   auto mapPoint = keyPoint->mapPointPtr.lock();
-    //   auto frame = keyPoint->framePtr.lock();
-    //   auto uv = pinholeCamera_->world2pixel(mapPoint->getWorldPoint(), frame->T_wc);
-    //   auto uvPoint = cv::Point2f(uv(0), uv(1));
+    pose.position.x = worldPose.translation().x();
+    pose.position.y = worldPose.translation().y();
+    pose.position.z = worldPose.translation().z();
+    poseStampMsg.pose = pose;
 
-    //   cv::circle(debugImage, uvPoint, 4, cv::Scalar(255, 0, 255), 1, cv::LINE_4, 0);
-    //   cv::line(debugImage, uvPoint, keyPoint->point, cv::Scalar(0, 255, 255), 1);
-    // }
+    poses.push_back(std::move(poseStampMsg));
   }
 
-  auto message = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debugImage).toImageMsg();
-  message->header.stamp = clock_->now();
-  debugImagePub_->publish(*message);
+  nav_msgs::msg::Path pathMsg;
+  pathMsg.header.stamp = clock_->now();
+  pathMsg.header.frame_id = "camera_optical_link";
+  pathMsg.poses = poses;
+
+  pathPub_->publish(pathMsg);
 }
 } // namespace StereoSLAM

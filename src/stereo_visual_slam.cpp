@@ -6,14 +6,29 @@ StereoVisualSLAM::StereoVisualSLAM(const rclcpp::NodeOptions &options) : Node("s
   double baseline = 0.537;
   cv::Point2d pp(607.1928, 185.2157);
 
+  Eigen::Matrix3d K;
+  Eigen::Vector3d t;
+
+  /* clang-format off */
+  K << focal, 0.0, pp.x,
+       0.0, focal, pp.y,
+       0.0, 0.0, 1.0;
+
+  t << -386.1448, 0.0, 0.0;
+  /* clang-format on */
+
+  t = K.inverse() * t;
+  Sophus::SE3d pose = Sophus::SE3d(Eigen::Matrix3d::Identity(), t);
+
   debugImagePub_ = this->create_publisher<sensor_msgs::msg::Image>("/mono/image", 50);
   pointCloudPub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/mono/pointcloud", 10);
+  pathPub_ = this->create_publisher<nav_msgs::msg::Path>("/mono/path", 10);
 
   map_ = std::make_shared<Map>();
-  stereoCam_ = std::make_shared<PinholeCamera>(focal, focal, pp.x, pp.y, baseline);
+  stereoCam_ = std::make_shared<PinholeCamera>(focal, focal, pp.x, pp.y, baseline, pose);
   frontend_ = std::make_shared<Frontend>(stereoCam_, map_);
 
-  viewer_ = std::make_unique<Viewer>(map_, stereoCam_, this->get_clock(), debugImagePub_, pointCloudPub_);
+  viewer_ = std::make_unique<Viewer>(map_, stereoCam_, this->get_clock(), debugImagePub_, pointCloudPub_, pathPub_);
 
   leftImageSub_ = std::make_shared<message_filters::Subscriber<Image>>(this, "/stereo/image_left");
   rightImageSub_ = std::make_shared<message_filters::Subscriber<Image>>(this, "/stereo/image_right");

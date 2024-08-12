@@ -4,42 +4,53 @@ namespace StereoSLAM {
 Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map)
     : stereoCam_(stereoCam), map_(map) {
   std::cout << "FrontEnd Constructor" << std::endl;
+  gftt_ = cv::GFTTDetector::create(150, 0.01, 20);
 }
 
 bool Frontend::step(std::shared_ptr<Frame> frame) {
   std::cout << "Input Frame" << std::endl;
   currentFrame_ = frame;
 
-  if (status == Status::INIT) {
+  if (status_ == Status::INIT) {
     init();
   } else {
     tracking();
   }
+
+  prevFrame_ = currentFrame_;
   return true;
 }
 
-void Frontend::tracking() {}
+void Frontend::tracking() {
+  auto trackingFeatureCount = trackingFeature();
+  auto inlierFeatureCount = estimatePose();
+  std::cout << "Tracking: " << trackingFeatureCount << "/ Inliers: " << inlierFeatureCount << std::endl;
+  std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
+  currentFrame_->setKeyFrame();
+  map_->addKeyframe(currentFrame_);
+}
 
 void Frontend::init() {
+  currentFrame_->T_wc = Sophus::SE3d();
   createLeftFeature();
   matchInRight();
   createMapPoint();
 
   std::cout << "Frontend: Init" << std::endl;
+  status_ = Status::TRACKING;
 }
 
 int16_t Frontend::createLeftFeature() {
-  std::vector<cv::KeyPoint> keypoints;
-  int8_t fast_threshold = 120;
-  bool nonMaxSuppression = true;
-
-  cv::FAST(currentFrame_->imageL, keypoints, fast_threshold, nonMaxSuppression);
-
-  for (auto &keyPoint : keypoints) {
-    currentFrame_->featurePtrs.push_back(Feature::Ptr(new Feature(currentFrame_, keyPoint.pt)));
+  cv::Mat mask(currentFrame_->imageL.size(), CV_8UC1, 255);
+  for (auto &feat : currentFrame_->featurePtrs) {
+    cv::rectangle(mask, feat->point - cv::Point2f(10, 10), feat->point + cv::Point2f(10, 10), 0, cv::FILLED);
   }
 
-  std::cout << "Detected feature count: " << currentFrame_->featurePtrs.size() << std::endl;
+  std::vector<cv::KeyPoint> keypoints;
+  gftt_->detect(currentFrame_->imageL, keypoints, mask);
+  for (auto &kp : keypoints) {
+    currentFrame_->featurePtrs.push_back(std::make_shared<Feature>(currentFrame_, kp.pt));
+  }
   return currentFrame_->featurePtrs.size();
 }
 
@@ -53,6 +64,7 @@ int16_t Frontend::matchInRight() {
 
   std::vector<uchar> status;
   cv::Mat error;
+  double epsilon = 1.0;
   cv::calcOpticalFlowPyrLK(
       currentFrame_->imageL, currentFrame_->imageR, leftKeypoints, rightKeypoints, status, error, cv::Size(11, 11), 3,
       cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
@@ -62,7 +74,7 @@ int16_t Frontend::matchInRight() {
     if (status[i]) {
       Feature::Ptr feat(new Feature(currentFrame_, rightKeypoints[i]));
       feat->isLeftFeature = false;
-      currentFrame_->rightFeaturePtrs.push_back(feat);
+      currentFrame_->rightFeaturePtrs.push_back(std::move(feat));
       num_good_pts++;
     } else {
       currentFrame_->rightFeaturePtrs.push_back(nullptr);
@@ -72,31 +84,150 @@ int16_t Frontend::matchInRight() {
   return num_good_pts;
 }
 
-int16_t Frontend::trackingFeature() { return 0; }
+int16_t Frontend::trackingFeature() {
+  if (prevFrame_ == nullptr) {
+    std::cout << "???" << std::endl;
+    status_ = Status::INIT;
+    return -1;
+  }
+  std::vector<cv::Point2f> prevKeypoints, currKeypoints;
+
+  for (auto &feature : prevFrame_->featurePtrs) {
+    prevKeypoints.push_back(feature->point);
+    currKeypoints.push_back(feature->point);
+  }
+  std::vector<uchar> status;
+  cv::Mat error;
+
+  cv::calcOpticalFlowPyrLK(
+      prevFrame_->imageL, currentFrame_->imageL, prevKeypoints, currKeypoints, status, error, cv::Size(11, 11), 3,
+      cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
+
+  for (size_t i = 0; i < status.size(); ++i) {
+    const auto &prevKeypoint = prevFrame_->featurePtrs[i];
+    if (status[i] && prevKeypoint->mapPointPtr.lock() != nullptr) {
+      Feature::Ptr feat(new Feature(currentFrame_, currKeypoints[i], prevKeypoints[i]));
+      feat->mapPointPtr = prevKeypoint->mapPointPtr;
+
+      currentFrame_->featurePtrs.push_back(std::move(feat));
+      currentFrame_->rightFeaturePtrs.push_back(nullptr);
+    }
+  }
+
+  return currentFrame_->featurePtrs.size();
+}
 
 void Frontend::createMapPoint() {
+  auto pose = stereoCam_->getPose().matrix();
+  int16_t landmarkCount = 0;
   std::vector<cv::Point2f> leftPoints, rightPoints;
+  std::vector<Feature::Ptr> features;
 
   for (int i = 0; i < currentFrame_->featurePtrs.size(); ++i) {
     if (currentFrame_->rightFeaturePtrs[i] != nullptr) {
-      auto &leftFeature = currentFrame_->featurePtrs[i];
+      auto &feature = currentFrame_->featurePtrs[i];
       auto &rightFeature = currentFrame_->rightFeaturePtrs[i];
 
-      Eigen::Vector3d worldPoint = stereoCam_->pixel2World(leftFeature->point, rightFeature->point);
-
-      if (worldPoint(2) >= 100 || worldPoint(2) <= 0) {
-        continue;
-      }
-
-      auto mapPointPtr = MapPoint::Ptr(new MapPoint(worldPoint));
-      mapPointPtr->isLocalPoint = true;
-      mapPointPtr->addObserve(currentFrame_->featurePtrs[i]);
-
-      currentFrame_->featurePtrs[i]->mapPointPtr = mapPointPtr;
-      map_->addMapPoint(mapPointPtr);
+      leftPoints.push_back(stereoCam_->pixel2camera(feature->point));
+      rightPoints.push_back(stereoCam_->pixel2camera(rightFeature->point));
+      features.push_back(feature);
     }
   }
+
+  /* clang-format off */
+  cv::Mat T1 = (cv::Mat_<float>(3, 4) << 
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0);
+  cv::Mat T2 = (cv::Mat_<float>(3, 4) <<
+    pose(0, 0), pose(0, 1), pose(0, 2), pose(0, 3),
+    pose(1, 0), pose(1, 1), pose(1, 2), pose(1, 3),
+    pose(2, 0), pose(2, 1), pose(2, 2), pose(2, 3));
+  /* clang-format on */
+
+  cv::Mat worldHomoPoints;
+
+  cv::triangulatePoints(T1, T2, leftPoints, rightPoints, worldHomoPoints);
+
+  for (int i = 0; i < worldHomoPoints.cols; ++i) {
+    if (currentFrame_->featurePtrs[i]->mapPointPtr.lock() != nullptr) {
+      continue;
+    }
+
+    cv::Mat x = worldHomoPoints.col(i);
+    Eigen::Vector4d homogenousWorldPoint = Eigen::Vector4d::Identity();
+    Eigen::Vector3d worldPoint = Eigen::Vector3d::Zero();
+
+    x /= x.at<float>(3, 0);
+
+    homogenousWorldPoint(0) = x.at<float>(0, 0);
+    homogenousWorldPoint(1) = x.at<float>(1, 0);
+    homogenousWorldPoint(2) = x.at<float>(2, 0);
+    homogenousWorldPoint(3) = 1.0;
+
+    if (homogenousWorldPoint(2) > 0) {
+      homogenousWorldPoint = homogenousWorldPoint;
+
+      worldPoint(0) = homogenousWorldPoint(0);
+      worldPoint(1) = homogenousWorldPoint(1);
+      worldPoint(2) = homogenousWorldPoint(2);
+
+      auto mapPointPtr = std::make_shared<MapPoint>(worldPoint);
+      mapPointPtr->isLocalPoint = true;
+      mapPointPtr->addObserve(features[i]);
+
+      features[i]->mapPointPtr = mapPointPtr;
+      map_->addMapPoint(mapPointPtr);
+      ++landmarkCount;
+    }
+  }
+
+  std::cout << "Find Landmark: " << landmarkCount << std::endl;
 }
 
-void Frontend::estimatePose() {}
+int16_t Frontend::estimatePose() {
+  cv::Mat rVec, tVec;
+  std::vector<int> inliers;
+  std::vector<Feature::Ptr> features;
+  std::vector<cv::Point3f> worldPoints;
+  std::vector<cv::Point2f> pixelPoints;
+
+  for (auto &feature : currentFrame_->featurePtrs) {
+    if (feature->mapPointPtr.lock() != nullptr) {
+      auto mapPoint = feature->mapPointPtr.lock();
+      auto &worldPoint = mapPoint->getWorldPoint();
+
+      features.push_back(feature);
+      pixelPoints.push_back(feature->point);
+      worldPoints.push_back(cv::Point3f(worldPoint(0), worldPoint(1), worldPoint(2)));
+    }
+  }
+
+  auto K = stereoCam_->getCVIntrinsic();
+  auto distCoeffs = stereoCam_->getCVDistCoeff();
+  bool success =
+      cv::solvePnPRansac(worldPoints, pixelPoints, K, distCoeffs, rVec, tVec, false, 100, 2.0, 0.99, inliers);
+  if (success) {
+    cv::Mat R;
+    Eigen::Matrix3d eigenR;
+    Eigen::Vector3d eigenT;
+    cv::Rodrigues(rVec, R);
+
+    for (int i = 0; i < 3; ++i) {
+      for (int j = 0; j < 3; ++j) {
+        eigenR(i, j) = R.at<double>(i, j);
+      }
+    }
+
+    eigenT(0) = tVec.at<double>(0);
+    eigenT(1) = tVec.at<double>(1);
+    eigenT(2) = tVec.at<double>(2);
+
+    currentFrame_->T_d = Sophus::SE3d(eigenR, eigenT);
+    currentFrame_->T_wc = prevFrame_->T_wc;
+    currentFrame_->T_wc = prevFrame_->T_wc * currentFrame_->T_d;
+  }
+
+  return inliers.size();
+}
 } // namespace StereoSLAM

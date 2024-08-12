@@ -35,7 +35,7 @@ bool Map::addFrame(std::shared_ptr<Frame> frame) {
 }
 
 Map::KeyFrameType &Map::getActiveKeyFrames() { return activeKeyFramePtrs_; }
-Map::KeyFrameType &Map::getFrames() { return framePtrs_; }
+Map::KeyFrameType &Map::getFrames() { return keyFramePtrs_; }
 
 Map::MapPointType &Map::getActiveMapPoints() { return activeMapPointPtrs_; }
 } // namespace StereoSLAM
