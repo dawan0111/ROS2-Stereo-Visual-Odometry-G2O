@@ -25,9 +25,17 @@ void Frontend::tracking() {
   auto trackingFeatureCount = trackingFeature();
   auto inlierFeatureCount = estimatePose();
   std::cout << "Tracking: " << trackingFeatureCount << "/ Inliers: " << inlierFeatureCount << std::endl;
-  std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
-  currentFrame_->setKeyFrame();
-  map_->addKeyframe(currentFrame_);
+  // std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
+
+  if (inlierFeatureCount <= 60) {
+    currentFrame_->setKeyFrame();
+    map_->addKeyframe(currentFrame_);
+
+    std::cout << "Set Keyframe #" << currentFrame_->frameId << std::endl;
+    createLeftFeature();
+    matchInRight();
+    createMapPoint();
+  }
 }
 
 void Frontend::init() {
@@ -111,7 +119,6 @@ int16_t Frontend::trackingFeature() {
       feat->mapPointPtr = prevKeypoint->mapPointPtr;
 
       currentFrame_->featurePtrs.push_back(std::move(feat));
-      currentFrame_->rightFeaturePtrs.push_back(nullptr);
     }
   }
 
@@ -119,6 +126,7 @@ int16_t Frontend::trackingFeature() {
 }
 
 void Frontend::createMapPoint() {
+  auto framePose = currentFrame_->T_wc.inverse();
   auto pose = stereoCam_->getPose().matrix();
   int16_t landmarkCount = 0;
   std::vector<cv::Point2f> leftPoints, rightPoints;
@@ -167,7 +175,7 @@ void Frontend::createMapPoint() {
     homogenousWorldPoint(3) = 1.0;
 
     if (homogenousWorldPoint(2) > 0) {
-      homogenousWorldPoint = homogenousWorldPoint;
+      homogenousWorldPoint = framePose * homogenousWorldPoint;
 
       worldPoint(0) = homogenousWorldPoint(0);
       worldPoint(1) = homogenousWorldPoint(1);
@@ -203,6 +211,8 @@ int16_t Frontend::estimatePose() {
       features.push_back(feature);
       pixelPoints.push_back(feature->point);
       worldPoints.push_back(cv::Point3f(worldPoint(0), worldPoint(1), worldPoint(2)));
+
+      feature->isInlier = false;
     }
   }
 
@@ -225,6 +235,17 @@ int16_t Frontend::estimatePose() {
     eigenT(0) = tVec.at<double>(0, 0);
     eigenT(1) = tVec.at<double>(1, 0);
     eigenT(2) = tVec.at<double>(2, 0);
+
+    for (auto &inlier : inliers) {
+      features[inlier]->isInlier = true;
+    }
+
+    for (auto &feature : features) {
+      if (!feature->isInlier) {
+        feature->mapPointPtr.reset();
+        feature->isInlier = true;
+      }
+    }
 
     currentFrame_->T_wc = Sophus::SE3d(eigenR, eigenT);
   }

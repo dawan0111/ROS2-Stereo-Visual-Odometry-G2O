@@ -18,9 +18,7 @@ void Viewer::update() {
 void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
   cv::Mat debugImage;
   auto leftImageCol = frame->imageL.cols;
-
-  cv::hconcat(frame->imageL, frame->imageR, debugImage);
-  cv::cvtColor(debugImage, debugImage, cv::COLOR_GRAY2BGR);
+  cv::cvtColor(frame->imageL, debugImage, cv::COLOR_GRAY2BGR);
 
   for (int i = 0; i < frame->featurePtrs.size(); ++i) {
     auto &keyPoint = frame->featurePtrs[i];
@@ -106,7 +104,7 @@ void Viewer::pathUpdate() {
 
   auto frames = map_->getFrames();
   for (auto &[id, frame] : frames) {
-    auto updatePose = frame->T_wc;
+    auto updatePose = frame->T_wc.inverse();
     auto worldPose = updatePose;
 
     geometry_msgs::msg::PoseStamped poseStampMsg;
