@@ -9,7 +9,7 @@ class Map {
 
 public:
   using MapPointType = std::unordered_map<u_int32_t, std::shared_ptr<MapPoint>>;
-  using KeyFrameType = std::unordered_map<u_int32_t, std::shared_ptr<Frame>>;
+  using KeyFrameType = std::map<u_int32_t, std::shared_ptr<Frame>>;
   Map();
   bool addMapPoint(std::shared_ptr<MapPoint> mapPoint);
   bool addKeyframe(std::shared_ptr<Frame> frame);

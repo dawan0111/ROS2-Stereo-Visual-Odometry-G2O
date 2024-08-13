@@ -25,13 +25,13 @@ void Frontend::tracking() {
   auto trackingFeatureCount = trackingFeature();
   auto inlierFeatureCount = estimatePose();
   std::cout << "Tracking: " << trackingFeatureCount << "/ Inliers: " << inlierFeatureCount << std::endl;
-  // std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
 
-  if (inlierFeatureCount <= 60) {
+  if (inlierFeatureCount <= 70) {
     currentFrame_->setKeyFrame();
     map_->addKeyframe(currentFrame_);
 
     std::cout << "Set Keyframe #" << currentFrame_->frameId << std::endl;
+    std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
     createLeftFeature();
     matchInRight();
     createMapPoint();
@@ -195,9 +195,11 @@ void Frontend::createMapPoint() {
 }
 
 int16_t Frontend::estimatePose() {
-  cv::Mat rVec = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 0.0);
-  cv::Mat tVec = (cv::Mat_<double>(3, 1) << prevFrame_->T_wc.translation().x(), prevFrame_->T_wc.translation().y(),
-                  prevFrame_->T_wc.translation().z());
+  cv::Mat rVec;
+  cv::Mat tVec;
+  // cv::Mat rVec = (cv::Mat_<double>(3, 1) << 0.0, 0.0, 0.0);
+  // cv::Mat tVec = (cv::Mat_<double>(3, 1) << prevFrame_->T_wc.translation().x(), prevFrame_->T_wc.translation().y(),
+  //                 prevFrame_->T_wc.translation().z());
   std::vector<int> inliers;
   std::vector<Feature::Ptr> features;
   std::vector<cv::Point3f> worldPoints;
@@ -218,7 +220,7 @@ int16_t Frontend::estimatePose() {
 
   auto K = stereoCam_->getCVIntrinsic();
   auto distCoeffs = stereoCam_->getCVDistCoeff();
-  bool success = cv::solvePnPRansac(worldPoints, pixelPoints, K, distCoeffs, rVec, tVec, true, 100, 2.0, 0.99, inliers,
+  bool success = cv::solvePnPRansac(worldPoints, pixelPoints, K, distCoeffs, rVec, tVec, false, 100, 2.0, 0.99, inliers,
                                     cv::SOLVEPNP_ITERATIVE);
   if (success) {
     cv::Mat R;
@@ -248,6 +250,8 @@ int16_t Frontend::estimatePose() {
     }
 
     currentFrame_->T_wc = Sophus::SE3d(eigenR, eigenT);
+  } else {
+    std::cout << "pose estimate failed!!" << std::endl;
   }
 
   return inliers.size();
