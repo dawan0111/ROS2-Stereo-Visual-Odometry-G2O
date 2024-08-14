@@ -13,18 +13,17 @@
 #include <g2o/types/sba/types_six_dof_expmap.h>
 #include <iostream>
 namespace StereoSLAM {
-class BackEnd {
+class Backend {
   using BlockSolverType = g2o::BlockSolver<g2o::BlockSolverTraits<6, 3>>;
   using LinearSolverType = g2o::LinearSolverCSparse<BlockSolverType::PoseMatrixType>;
 
 public:
-  BackEnd(std::shared_ptr<Map> map, std::shared_ptr<Config> config, std::shared_ptr<PinholeCamera> camera);
+  Backend(std::shared_ptr<PinholeCamera> camera, std::shared_ptr<Map> map);
   void updateMap();
   void optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &activeMapPoints);
 
 private:
   std::shared_ptr<Map> map_;
-  std::shared_ptr<Config> config_;
   std::shared_ptr<PinholeCamera> camera_;
 
   std::unique_ptr<g2o::SparseOptimizer> optimizer_;

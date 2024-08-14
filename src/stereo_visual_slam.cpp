@@ -26,7 +26,8 @@ StereoVisualSLAM::StereoVisualSLAM(const rclcpp::NodeOptions &options) : Node("s
 
   map_ = std::make_shared<Map>();
   stereoCam_ = std::make_shared<PinholeCamera>(focal, focal, pp.x, pp.y, baseline, pose);
-  frontend_ = std::make_shared<Frontend>(stereoCam_, map_);
+  backend_ = std::make_shared<Backend>(stereoCam_, map_);
+  frontend_ = std::make_shared<Frontend>(stereoCam_, map_, backend_);
 
   viewer_ = std::make_unique<Viewer>(map_, stereoCam_, this->get_clock(), debugImagePub_, pointCloudPub_, pathPub_);
 

@@ -1,16 +1,17 @@
 #include "stereo_visual_slam/backend.hpp"
 
 namespace StereoSLAM {
-BackEnd::BackEnd(std::shared_ptr<Map> map, std::shared_ptr<Config> config, std::shared_ptr<PinholeCamera> camera)
-    : map_(map), config_(config), camera_(camera) {
+Backend::Backend(std::shared_ptr<PinholeCamera> camera, std::shared_ptr<Map> map) : camera_(camera), map_(map) {
   optimizer_ = std::make_unique<g2o::SparseOptimizer>();
   solver_ =
       new g2o::OptimizationAlgorithmLevenberg(std::make_unique<BlockSolverType>(std::make_unique<LinearSolverType>()));
   optimizer_->setAlgorithm(solver_);
   optimizer_->setVerbose(true);
 
-  double focal_length = config->get<double>("focal_x");
-  Eigen::Vector2d principal_point(config->get<double>("c_x"), config->get<double>("c_y"));
+  auto cvCamK = camera_->getCVIntrinsic();
+
+  double focal_length = cvCamK.at<double>(0, 0);
+  Eigen::Vector2d principal_point(cvCamK.at<double>(0, 2), cvCamK.at<double>(1, 2));
 
   std::cout << "focal_length: " << focal_length << std::endl;
   std::cout << "Point: " << principal_point << std::endl;
@@ -21,17 +22,18 @@ BackEnd::BackEnd(std::shared_ptr<Map> map, std::shared_ptr<Config> config, std::
   optimizer_->addParameter(cam_params);
 }
 
-void BackEnd::updateMap() {
+void Backend::updateMap() {
   auto &activeKeyFrames = map_->getActiveKeyFrames();
   auto &activeMapPoints = map_->getActiveMapPoints();
 
   optimize(activeKeyFrames, activeMapPoints);
 }
 
-void BackEnd::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &activeMapPoints) {
+void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &activeMapPoints) {
   std::unordered_map<int32_t, g2o::VertexSE3Expmap *> vertices;
   std::unordered_map<int32_t, g2o::VertexPointXYZ *> mapPointVertices;
   u_int32_t keyFrameSize = 0;
+  u_int32_t edgeSize = 0;
   for (auto &[id, frame] : activeKeyframes) {
     auto pose = frame->T_wc;
     g2o::SE3Quat g2oPose(pose.rotationMatrix(), pose.translation());
@@ -52,47 +54,53 @@ void BackEnd::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
     optimizer_->addVertex(vertex);
     mapPointVertices.insert({id, vertex});
 
-    for (auto &observe : mapPoint->getObserve()) {
-      if (observe.lock() == nullptr) {
-        continue;
-      }
-      auto feature = observe.lock();
-      if (!feature->isInlier || feature->framePtr.lock() == nullptr) {
-        continue;
-      }
+    if (mapPoint->getObserve().size() >= 2) {
+      for (auto &observe : mapPoint->getObserve()) {
+        if (observe.lock() == nullptr) {
+          continue;
+        }
+        auto feature = observe.lock();
+        if (!feature->isInlier || feature->framePtr.lock() == nullptr) {
+          continue;
+        }
 
-      auto keyFrame = feature->framePtr.lock();
+        auto keyFrame = feature->framePtr.lock();
 
-      auto landmarkId = id;
-      auto keyFrameId = keyFrame->frameId;
+        auto landmarkId = id;
+        auto keyFrameId = keyFrame->frameId;
 
-      if (mapPointVertices.find(landmarkId) != mapPointVertices.end() && vertices.find(keyFrameId) != vertices.end()) {
-        g2o::EdgeProjectXYZ2UV *edge = new g2o::EdgeProjectXYZ2UV();
-        g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-        Eigen::Vector2d measure = Eigen::Vector2d::Zero();
+        if (mapPointVertices.find(landmarkId) != mapPointVertices.end() &&
+            vertices.find(keyFrameId) != vertices.end()) {
+          g2o::EdgeProjectXYZ2UV *edge = new g2o::EdgeProjectXYZ2UV();
+          g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+          Eigen::Vector2d measure = Eigen::Vector2d::Zero();
 
-        measure(0) = feature->point.x;
-        measure(1) = feature->point.y;
+          measure(0) = feature->point.x;
+          measure(1) = feature->point.y;
 
-        edge->setId(id);
-        edge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer_->vertex(mapPointId)));
-        edge->setVertex(1,
-                        dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer_->vertices().find(keyFrameId)->second));
-        edge->setMeasurement(measure);
-        edge->setInformation(Eigen::Matrix2d::Identity());
-        edge->setRobustKernel(rk);
-        edge->setParameterId(0, 0);
-        optimizer_->addEdge(edge);
+          edge->setId(id);
+          edge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer_->vertex(mapPointId)));
+          edge->setVertex(
+              1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer_->vertices().find(keyFrameId)->second));
+          edge->setMeasurement(measure);
+          edge->setInformation(Eigen::Matrix2d::Identity());
+          edge->setRobustKernel(rk);
+          edge->setParameterId(0, 0);
+          optimizer_->addEdge(edge);
+
+          ++edgeSize;
+        }
       }
     }
   }
 
   optimizer_->initializeOptimization();
-  optimizer_->setVerbose(false);
-  optimizer_->optimize(50);
+  optimizer_->setVerbose(true);
+  optimizer_->optimize(10);
 
   std::cout << "Pose size: " << vertices.size() << std::endl;
   std::cout << "Landmark size: " << mapPointVertices.size() << std::endl;
+  std::cout << "Edge size: " << edgeSize << std::endl;
 
   for (const auto &[id, vertex] : vertices) {
     const auto &poseEstimate = vertex->estimate();

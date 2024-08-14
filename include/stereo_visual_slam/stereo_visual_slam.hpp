@@ -2,6 +2,7 @@
 #define __STEREO_VISUAL_SLAM_H__
 
 #include "rclcpp/rclcpp.hpp"
+#include "stereo_visual_slam/backend.hpp"
 #include "stereo_visual_slam/frame.hpp"
 #include "stereo_visual_slam/frontend.hpp"
 #include "stereo_visual_slam/map.hpp"
@@ -43,6 +44,7 @@ private:
   std::unique_ptr<Viewer> viewer_;
 
   std::shared_ptr<Frontend> frontend_;
+  std::shared_ptr<Backend> backend_;
   std::shared_ptr<Map> map_;
   std::shared_ptr<PinholeCamera> stereoCam_;
 };

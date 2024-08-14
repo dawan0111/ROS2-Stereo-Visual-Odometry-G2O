@@ -1,8 +1,8 @@
 #include "stereo_visual_slam/frontend.hpp"
 
 namespace StereoSLAM {
-Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map)
-    : stereoCam_(stereoCam), map_(map) {
+Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map, std::shared_ptr<Backend> backend)
+    : stereoCam_(stereoCam), map_(map), backend_(backend) {
   std::cout << "FrontEnd Constructor" << std::endl;
   gftt_ = cv::GFTTDetector::create(150, 0.01, 20);
 }
@@ -27,11 +27,15 @@ void Frontend::tracking() {
   std::cout << "Tracking: " << trackingFeatureCount << "/ Inliers: " << inlierFeatureCount << std::endl;
 
   if (inlierFeatureCount <= 70) {
-    currentFrame_->setKeyFrame();
-    map_->addKeyframe(currentFrame_);
-
     std::cout << "Set Keyframe #" << currentFrame_->frameId << std::endl;
     std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
+
+    updateObservation();
+
+    currentFrame_->setKeyFrame();
+    map_->addKeyframe(currentFrame_);
+    backend_->updateMap();
+
     createLeftFeature();
     matchInRight();
     createMapPoint();
@@ -44,6 +48,9 @@ void Frontend::init() {
   createLeftFeature();
   matchInRight();
   createMapPoint();
+
+  currentFrame_->setKeyFrame();
+  map_->addKeyframe(currentFrame_);
 
   std::cout << "Frontend: Init" << std::endl;
   status_ = Status::TRACKING;
@@ -255,5 +262,15 @@ int16_t Frontend::estimatePose() {
   }
 
   return inliers.size();
+}
+
+void Frontend::updateObservation() {
+  int16_t count = 0;
+  for (auto &feature : currentFrame_->featurePtrs) {
+    if (feature->mapPointPtr.lock() != nullptr) {
+      auto mapPointPtr = feature->mapPointPtr.lock();
+      mapPointPtr->addObserve(feature);
+    }
+  }
 }
 } // namespace StereoSLAM

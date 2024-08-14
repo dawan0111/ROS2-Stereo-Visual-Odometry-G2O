@@ -1,6 +1,7 @@
 #ifndef __FRONTEND_H__
 #define __FRONTEND_H__
 
+#include "stereo_visual_slam/backend.hpp"
 #include "stereo_visual_slam/frame.hpp"
 #include "stereo_visual_slam/map.hpp"
 #include "stereo_visual_slam/map_point.hpp"
@@ -13,7 +14,7 @@ namespace StereoSLAM {
 enum class Status { INIT, TRACKING, LOSS };
 class Frontend {
 public:
-  Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map);
+  Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map, std::shared_ptr<Backend> backend);
   bool step(std::shared_ptr<Frame> frame);
 
 private:
@@ -23,6 +24,7 @@ private:
   int16_t matchInRight();
   int16_t trackingFeature();
   void createMapPoint();
+  void updateObservation();
   int16_t estimatePose();
 
 private:
@@ -31,6 +33,7 @@ private:
   std::shared_ptr<Frame> prevFrame_ = nullptr;
   std::shared_ptr<PinholeCamera> stereoCam_;
   std::shared_ptr<Map> map_;
+  std::shared_ptr<Backend> backend_;
 
   cv::Ptr<cv::GFTTDetector> gftt_;
 };
