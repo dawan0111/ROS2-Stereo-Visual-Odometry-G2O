@@ -13,7 +13,7 @@ public:
   using Ptr = std::shared_ptr<MapPoint>;
   MapPoint();
   MapPoint(Eigen::Vector3d &worldPoint);
-  const int16_t &getObservationCount() const;
+  int16_t getObservationCount() const;
   bool addObserve(std::shared_ptr<Feature> feature);
   bool removeObserve(std::shared_ptr<Feature> feature);
 

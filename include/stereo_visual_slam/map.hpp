@@ -10,21 +10,25 @@ class Map {
 public:
   using MapPointType = std::unordered_map<u_int32_t, std::shared_ptr<MapPoint>>;
   using KeyFrameType = std::map<u_int32_t, std::shared_ptr<Frame>>;
-  Map();
+
+  Map(int16_t localWindowSize = 10);
   bool addMapPoint(std::shared_ptr<MapPoint> mapPoint);
   bool addKeyframe(std::shared_ptr<Frame> frame);
-  bool addFrame(std::shared_ptr<Frame> frame);
+  bool removeActiveKeyframe(int16_t frameId);
+  bool removeActiveMapPoint(u_int32_t mapPointId);
 
   KeyFrameType &getActiveKeyFrames();
-  KeyFrameType &getFrames();
+  KeyFrameType &getKeyFrames();
   MapPointType &getActiveMapPoints();
+  MapPointType &getMapPoints();
 
 private:
   MapPointType mapPointPtrs_;
   MapPointType activeMapPointPtrs_;
-  KeyFrameType framePtrs_;
   KeyFrameType keyFramePtrs_;
   KeyFrameType activeKeyFramePtrs_;
+
+  int16_t localWindowSize_;
 };
 } // namespace StereoSLAM
 

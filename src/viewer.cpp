@@ -53,7 +53,7 @@ void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
 }
 
 void Viewer::mapPointUpdate() {
-  const auto &mapPoints = map_->getActiveMapPoints();
+  const auto &mapPoints = map_->getMapPoints();
   std::vector<Eigen::Vector3d> vector;
 
   for (const auto &[id, mapPoint] : mapPoints) {
@@ -102,7 +102,7 @@ void Viewer::mapPointUpdate() {
 void Viewer::pathUpdate() {
   std::vector<geometry_msgs::msg::PoseStamped> poses;
 
-  auto frames = map_->getFrames();
+  auto frames = map_->getKeyFrames();
   for (auto &[id, frame] : frames) {
     auto updatePose = frame->T_wc.inverse();
     auto worldPose = updatePose;

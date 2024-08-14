@@ -13,9 +13,6 @@ Backend::Backend(std::shared_ptr<PinholeCamera> camera, std::shared_ptr<Map> map
   double focal_length = cvCamK.at<double>(0, 0);
   Eigen::Vector2d principal_point(cvCamK.at<double>(0, 2), cvCamK.at<double>(1, 2));
 
-  std::cout << "focal_length: " << focal_length << std::endl;
-  std::cout << "Point: " << principal_point << std::endl;
-
   g2o::CameraParameters *cam_params = new g2o::CameraParameters(focal_length, principal_point, 0.);
   cam_params->setId(0);
 
