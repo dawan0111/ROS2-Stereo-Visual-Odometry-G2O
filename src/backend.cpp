@@ -26,7 +26,9 @@ void Backend::updateMap() {
   auto &activeKeyFrames = map_->getActiveKeyFrames();
   auto &activeMapPoints = map_->getActiveMapPoints();
 
-  optimize(activeKeyFrames, activeMapPoints);
+  if (activeKeyFrames.size() > 2) {
+    optimize(activeKeyFrames, activeMapPoints);
+  }
 }
 
 void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &activeMapPoints) {
@@ -34,15 +36,22 @@ void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
   std::unordered_map<int32_t, g2o::VertexPointXYZ *> mapPointVertices;
   u_int32_t keyFrameSize = 0;
   u_int32_t edgeSize = 0;
+  u_int16_t frameCount = 0;
   for (auto &[id, frame] : activeKeyframes) {
     auto pose = frame->T_wc;
     g2o::SE3Quat g2oPose(pose.rotationMatrix(), pose.translation());
     g2o::VertexSE3Expmap *vertex = new g2o::VertexSE3Expmap();
     vertex->setId(id);
     vertex->setEstimate(g2oPose);
+
+    if (frameCount < 2) {
+      vertex->setFixed(true);
+    }
+
     optimizer_->addVertex(vertex);
     vertices.insert({id, vertex});
     keyFrameSize = std::max(keyFrameSize, id);
+    ++frameCount;
   }
 
   for (auto &[id, mapPoint] : activeMapPoints) {
@@ -97,10 +106,6 @@ void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
   optimizer_->initializeOptimization();
   optimizer_->setVerbose(true);
   optimizer_->optimize(10);
-
-  std::cout << "Pose size: " << vertices.size() << std::endl;
-  std::cout << "Landmark size: " << mapPointVertices.size() << std::endl;
-  std::cout << "Edge size: " << edgeSize << std::endl;
 
   for (const auto &[id, vertex] : vertices) {
     const auto &poseEstimate = vertex->estimate();
