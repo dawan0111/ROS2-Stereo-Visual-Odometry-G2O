@@ -6,6 +6,9 @@ StereoVisualSLAM::StereoVisualSLAM(const rclcpp::NodeOptions &options) : Node("s
   double baseline = 0.537;
   cv::Point2d pp(607.1928, 185.2157);
 
+  vocabulary_ = std::make_shared<fbow::Vocabulary>();
+  vocabulary_->readFromFile("/home/kdw/vocabularies/orb_mur.fbow");
+
   Eigen::Matrix3d K;
   Eigen::Vector3d t;
 

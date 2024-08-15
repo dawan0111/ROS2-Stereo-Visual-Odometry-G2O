@@ -5,6 +5,7 @@ Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map
     : stereoCam_(stereoCam), map_(map), backend_(backend) {
   std::cout << "FrontEnd Constructor" << std::endl;
   gftt_ = cv::GFTTDetector::create(150, 0.01, 20);
+  orb_ = cv::ORB::create();
 }
 
 bool Frontend::step(std::shared_ptr<Frame> frame) {
@@ -33,6 +34,7 @@ void Frontend::tracking() {
     updateObservation();
 
     currentFrame_->setKeyFrame();
+    createFbow();
     map_->addKeyframe(currentFrame_);
     backend_->updateMap();
 
@@ -50,6 +52,7 @@ void Frontend::init() {
   createMapPoint();
 
   currentFrame_->setKeyFrame();
+  createFbow();
   map_->addKeyframe(currentFrame_);
 
   std::cout << "Frontend: Init" << std::endl;
@@ -59,13 +62,13 @@ void Frontend::init() {
 int16_t Frontend::createLeftFeature() {
   cv::Mat mask(currentFrame_->imageL.size(), CV_8UC1, 255);
   for (auto &feat : currentFrame_->featurePtrs) {
-    cv::rectangle(mask, feat->point - cv::Point2f(10, 10), feat->point + cv::Point2f(10, 10), 0, cv::FILLED);
+    cv::rectangle(mask, feat->point.pt - cv::Point2f(10, 10), feat->point.pt + cv::Point2f(10, 10), 0, cv::FILLED);
   }
 
   std::vector<cv::KeyPoint> keypoints;
   gftt_->detect(currentFrame_->imageL, keypoints, mask);
   for (auto &kp : keypoints) {
-    currentFrame_->featurePtrs.push_back(std::make_shared<Feature>(currentFrame_, kp.pt));
+    currentFrame_->featurePtrs.push_back(std::make_shared<Feature>(currentFrame_, kp));
   }
   return currentFrame_->featurePtrs.size();
 }
@@ -74,8 +77,8 @@ int16_t Frontend::matchInRight() {
   std::vector<cv::Point2f> leftKeypoints, rightKeypoints;
 
   for (auto &feature : currentFrame_->featurePtrs) {
-    leftKeypoints.push_back(feature->point);
-    rightKeypoints.push_back(feature->point);
+    leftKeypoints.push_back(feature->point.pt);
+    rightKeypoints.push_back(feature->point.pt);
   }
 
   std::vector<uchar> status;
@@ -88,7 +91,7 @@ int16_t Frontend::matchInRight() {
   int num_good_pts = 0;
   for (size_t i = 0; i < status.size(); ++i) {
     if (status[i]) {
-      Feature::Ptr feat(new Feature(currentFrame_, rightKeypoints[i]));
+      Feature::Ptr feat(new Feature(currentFrame_, cv::KeyPoint(rightKeypoints[i].x, rightKeypoints[i].y, 1.0)));
       feat->isLeftFeature = false;
       currentFrame_->rightFeaturePtrs.push_back(std::move(feat));
       num_good_pts++;
@@ -109,8 +112,8 @@ int16_t Frontend::trackingFeature() {
   std::vector<cv::Point2f> prevKeypoints, currKeypoints;
 
   for (auto &feature : prevFrame_->featurePtrs) {
-    prevKeypoints.push_back(feature->point);
-    currKeypoints.push_back(feature->point);
+    prevKeypoints.push_back(feature->point.pt);
+    currKeypoints.push_back(feature->point.pt);
   }
   std::vector<uchar> status;
   cv::Mat error;
@@ -122,7 +125,8 @@ int16_t Frontend::trackingFeature() {
   for (size_t i = 0; i < status.size(); ++i) {
     const auto &prevKeypoint = prevFrame_->featurePtrs[i];
     if (status[i] && prevKeypoint->mapPointPtr.lock() != nullptr) {
-      Feature::Ptr feat(new Feature(currentFrame_, currKeypoints[i], prevKeypoints[i]));
+      Feature::Ptr feat(
+          new Feature(currentFrame_, cv::KeyPoint(currKeypoints[i].x, currKeypoints[i].y, 1.0), prevKeypoints[i]));
       feat->mapPointPtr = prevKeypoint->mapPointPtr;
 
       currentFrame_->featurePtrs.push_back(std::move(feat));
@@ -144,8 +148,8 @@ void Frontend::createMapPoint() {
       auto &feature = currentFrame_->featurePtrs[i];
       auto &rightFeature = currentFrame_->rightFeaturePtrs[i];
 
-      leftPoints.push_back(stereoCam_->pixel2camera(feature->point));
-      rightPoints.push_back(stereoCam_->pixel2camera(rightFeature->point));
+      leftPoints.push_back(stereoCam_->pixel2camera(feature->point.pt));
+      rightPoints.push_back(stereoCam_->pixel2camera(rightFeature->point.pt));
       features.push_back(feature);
     }
   }
@@ -218,7 +222,7 @@ int16_t Frontend::estimatePose() {
       auto &worldPoint = mapPoint->getWorldPoint();
 
       features.push_back(feature);
-      pixelPoints.push_back(feature->point);
+      pixelPoints.push_back(feature->point.pt);
       worldPoints.push_back(cv::Point3f(worldPoint(0), worldPoint(1), worldPoint(2)));
 
       feature->isInlier = false;
@@ -272,5 +276,17 @@ void Frontend::updateObservation() {
       mapPointPtr->addObserve(feature);
     }
   }
+}
+
+void Frontend::createFbow() {
+  std::vector<cv::KeyPoint> keyPoints;
+  cv::Mat descriptors;
+  for (auto &feature : currentFrame_->featurePtrs) {
+    keyPoints.push_back(feature->point);
+  }
+  orb_->compute(currentFrame_->imageL, keyPoints, descriptors);
+  currentFrame_->briefDesc_ = descriptors;
+  std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
+  std::cout << "keyPoint size: " << keyPoints.size() << std::endl;
 }
 } // namespace StereoSLAM

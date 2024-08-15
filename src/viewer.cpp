@@ -23,9 +23,9 @@ void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
   for (int i = 0; i < frame->featurePtrs.size(); ++i) {
     auto &keyPoint = frame->featurePtrs[i];
     if (!keyPoint->isInlier) {
-      cv::circle(debugImage, keyPoint->point, 4, cv::Scalar(0, 0, 255), 1, cv::LINE_4, 0);
+      cv::circle(debugImage, keyPoint->point.pt, 4, cv::Scalar(0, 0, 255), 1, cv::LINE_4, 0);
     } else {
-      cv::circle(debugImage, keyPoint->point, 4, cv::Scalar(0, 255, 0), 1, cv::LINE_4, 0);
+      cv::circle(debugImage, keyPoint->point.pt, 4, cv::Scalar(0, 255, 0), 1, cv::LINE_4, 0);
     }
 
     // if (frame->rightFeaturePtrs[i] != nullptr) {
@@ -43,7 +43,7 @@ void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
       auto uvPoint = cv::Point2f(uv(0), uv(1));
 
       cv::circle(debugImage, uvPoint, 4, cv::Scalar(255, 0, 255), 1, cv::LINE_4, 0);
-      cv::line(debugImage, uvPoint, keyPoint->point, cv::Scalar(0, 255, 255), 1);
+      cv::line(debugImage, uvPoint, keyPoint->point.pt, cv::Scalar(0, 255, 255), 1);
     }
   }
 
@@ -54,11 +54,6 @@ void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
 
 void Viewer::mapPointUpdate() {
   const auto &mapPoints = map_->getMapPoints();
-  std::vector<Eigen::Vector3d> vector;
-
-  for (const auto &[id, mapPoint] : mapPoints) {
-    vector.push_back(mapPoint->getWorldPoint());
-  }
 
   auto pointCloud = sensor_msgs::msg::PointCloud2();
   pointCloud.height = 1;

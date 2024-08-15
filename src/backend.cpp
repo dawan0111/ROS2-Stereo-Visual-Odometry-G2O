@@ -81,8 +81,8 @@ void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
           g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
           Eigen::Vector2d measure = Eigen::Vector2d::Zero();
 
-          measure(0) = feature->point.x;
-          measure(1) = feature->point.y;
+          measure(0) = feature->point.pt.x;
+          measure(1) = feature->point.pt.y;
 
           edge->setId(id);
           edge->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer_->vertex(mapPointId)));
@@ -101,8 +101,8 @@ void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
   }
 
   optimizer_->initializeOptimization();
-  optimizer_->setVerbose(true);
-  optimizer_->optimize(10);
+  optimizer_->setVerbose(false);
+  optimizer_->optimize(30);
 
   for (const auto &[id, vertex] : vertices) {
     const auto &poseEstimate = vertex->estimate();

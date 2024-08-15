@@ -7,6 +7,7 @@
 #include "stereo_visual_slam/map_point.hpp"
 #include "stereo_visual_slam/pinhole_camera.hpp"
 #include <Eigen/Dense>
+#include <opencv2/features2d/features2d.hpp>
 #include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
 namespace StereoSLAM {
@@ -25,6 +26,7 @@ private:
   int16_t trackingFeature();
   void createMapPoint();
   void updateObservation();
+  void createFbow();
   int16_t estimatePose();
 
 private:
@@ -36,6 +38,7 @@ private:
   std::shared_ptr<Backend> backend_;
 
   cv::Ptr<cv::GFTTDetector> gftt_;
+  cv::Ptr<cv::ORB> orb_;
 };
 } // namespace StereoSLAM
 
