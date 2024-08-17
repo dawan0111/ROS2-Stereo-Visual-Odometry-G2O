@@ -27,10 +27,10 @@ StereoVisualSLAM::StereoVisualSLAM(const rclcpp::NodeOptions &options) : Node("s
   pointCloudPub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/mono/pointcloud", 10);
   pathPub_ = this->create_publisher<nav_msgs::msg::Path>("/mono/path", 10);
 
-  map_ = std::make_shared<Map>();
+  map_ = std::make_shared<Map>(vocabulary_);
   stereoCam_ = std::make_shared<PinholeCamera>(focal, focal, pp.x, pp.y, baseline, pose);
   backend_ = std::make_shared<Backend>(stereoCam_, map_);
-  frontend_ = std::make_shared<Frontend>(stereoCam_, map_, backend_);
+  frontend_ = std::make_shared<Frontend>(stereoCam_, map_, backend_, vocabulary_);
 
   viewer_ = std::make_unique<Viewer>(map_, stereoCam_, this->get_clock(), debugImagePub_, pointCloudPub_, pathPub_);
 

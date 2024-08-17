@@ -7,6 +7,7 @@
 #include "stereo_visual_slam/map_point.hpp"
 #include "stereo_visual_slam/pinhole_camera.hpp"
 #include <Eigen/Dense>
+#include <fbow/fbow.h>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/opencv.hpp>
 #include <sophus/se3.hpp>
@@ -15,7 +16,8 @@ namespace StereoSLAM {
 enum class Status { INIT, TRACKING, LOSS };
 class Frontend {
 public:
-  Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map, std::shared_ptr<Backend> backend);
+  Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map, std::shared_ptr<Backend> backend,
+           std::shared_ptr<fbow::Vocabulary> vocabulary);
   bool step(std::shared_ptr<Frame> frame);
 
 private:
@@ -36,6 +38,7 @@ private:
   std::shared_ptr<PinholeCamera> stereoCam_;
   std::shared_ptr<Map> map_;
   std::shared_ptr<Backend> backend_;
+  std::shared_ptr<fbow::Vocabulary> vocabulary_;
 
   cv::Ptr<cv::GFTTDetector> gftt_;
   cv::Ptr<cv::ORB> orb_;

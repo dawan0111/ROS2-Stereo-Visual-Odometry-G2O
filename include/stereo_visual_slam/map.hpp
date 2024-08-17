@@ -3,7 +3,7 @@
 
 #include "stereo_visual_slam/frame.hpp"
 #include "stereo_visual_slam/map_point.hpp"
-
+#include <fbow/fbow.h>
 namespace StereoSLAM {
 class Map {
 
@@ -11,7 +11,7 @@ public:
   using MapPointType = std::unordered_map<u_int32_t, std::shared_ptr<MapPoint>>;
   using KeyFrameType = std::map<u_int32_t, std::shared_ptr<Frame>>;
 
-  Map(int16_t localWindowSize = 10);
+  Map(std::shared_ptr<fbow::Vocabulary> vocabulary, int16_t localWindowSize = 10);
   bool addMapPoint(std::shared_ptr<MapPoint> mapPoint);
   bool addKeyframe(std::shared_ptr<Frame> frame);
   bool removeActiveKeyframe(int16_t frameId);
@@ -33,6 +33,8 @@ private:
   KeyFrameType activeKeyFramePtrs_;
 
   int16_t localWindowSize_;
+
+  std::shared_ptr<fbow::Vocabulary> vocabulary_;
 
   bool requiredViewerUpdated_ = true;
 };

@@ -1,7 +1,8 @@
 #include "stereo_visual_slam/map.hpp"
 
 namespace StereoSLAM {
-Map::Map(int16_t localWindowSize) : localWindowSize_(localWindowSize) {}
+Map::Map(std::shared_ptr<fbow::Vocabulary> vocabulary, int16_t localWindowSize)
+    : localWindowSize_(localWindowSize), vocabulary_(vocabulary) {}
 
 bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
   if (mapPointPtrs_.find(mapPoint->id) == mapPointPtrs_.end()) {
@@ -17,8 +18,15 @@ bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
 
 bool Map::addKeyframe(std::shared_ptr<Frame> frame) {
   if (keyFramePtrs_.find(frame->frameId) == keyFramePtrs_.end()) {
+    if (keyFramePtrs_.size() >= 1) {
+      const auto &prevKeyframe = (--keyFramePtrs_.end())->second;
+      auto score = prevKeyframe->fBowFeature.score(prevKeyframe->fBowFeature, frame->fBowFeature);
+      std::cout << "Fbow Score: " << score << std::endl;
+    }
     keyFramePtrs_[frame->frameId] = frame;
     activeKeyFramePtrs_[frame->frameId] = frame;
+
+    std::cout << "Add ID: " << frame->frameId << std::endl;
 
     if (localWindowSize_ < activeKeyFramePtrs_.size()) {
       removeActiveKeyframe(activeKeyFramePtrs_.begin()->first);
@@ -39,9 +47,6 @@ bool Map::removeActiveKeyframe(int16_t frameId) {
     for (auto &feature : frame->featurePtrs) {
       if (!feature->mapPointPtr.expired()) {
         auto mapPoint = feature->mapPointPtr.lock();
-        if (feature->framePtr.lock()->frameId == 3) {
-          std::cout << "MapPointId: " << mapPoint->id << std::endl;
-        }
         mapPoint->removeObserve(feature);
       }
     }
@@ -54,9 +59,6 @@ bool Map::removeActiveKeyframe(int16_t frameId) {
 
 void Map::cleanMap() {
   for (auto iter = activeMapPointPtrs_.begin(); iter != activeMapPointPtrs_.end();) {
-    if (iter->second->id <= 100) {
-      std::cout << "Id: " << iter->second->id << ", Obs: " << iter->second->getObservationCount() << std::endl;
-    }
     if (iter->second->getObservationCount() == 0) {
       iter->second->isLocalPoint = false;
       iter = activeMapPointPtrs_.erase(iter);
