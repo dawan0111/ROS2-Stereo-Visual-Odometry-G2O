@@ -55,43 +55,50 @@ void Viewer::debugImageUpdate(const std::shared_ptr<Frame> frame) {
 void Viewer::mapPointUpdate() {
   const auto &mapPoints = map_->getMapPoints();
 
-  auto pointCloud = sensor_msgs::msg::PointCloud2();
-  pointCloud.height = 1;
-  pointCloud.width = mapPoints.size();
-  pointCloud.is_dense = false;
-  sensor_msgs::PointCloud2Modifier modifier(pointCloud);
-  modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+  if (map_->getRequiredViewerUpdated()) {
+    auto pointCloud = sensor_msgs::msg::PointCloud2();
+    pointCloud.height = 1;
+    pointCloud.width = mapPoints.size();
+    pointCloud.is_dense = false;
+    sensor_msgs::PointCloud2Modifier modifier(pointCloud);
+    modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
 
-  sensor_msgs::PointCloud2Iterator<float> iter_x(pointCloud, "x");
-  sensor_msgs::PointCloud2Iterator<float> iter_y(pointCloud, "y");
-  sensor_msgs::PointCloud2Iterator<float> iter_z(pointCloud, "z");
-  sensor_msgs::PointCloud2Iterator<uint8_t> iter_rgb(pointCloud, "rgb");
+    sensor_msgs::PointCloud2Iterator<float> iter_x(pointCloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(pointCloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(pointCloud, "z");
+    sensor_msgs::PointCloud2Iterator<uint8_t> iter_rgb(pointCloud, "rgb");
 
-  for (const auto &[id, mapPoint] : mapPoints) {
-    auto vec = mapPoint->getWorldPoint();
+    for (const auto &[id, mapPoint] : mapPoints) {
+      auto vec = mapPoint->getWorldPoint();
 
-    *iter_x = static_cast<float>(vec(0));
-    *iter_y = static_cast<float>(vec(1));
-    *iter_z = static_cast<float>(vec(2));
+      *iter_x = static_cast<float>(vec(0));
+      *iter_y = static_cast<float>(vec(1));
+      *iter_z = static_cast<float>(vec(2));
 
-    uint32_t rgb = (static_cast<uint32_t>(255) << 16) | (static_cast<uint32_t>(255) << 8) |
-                   static_cast<uint32_t>(255); // R=255, G=0, B=0
+      uint32_t rgb = (static_cast<uint32_t>(255) << 16) | (static_cast<uint32_t>(255) << 8) |
+                     static_cast<uint32_t>(255); // R=255, G=0, B=0
 
-    if (mapPoint->isLocalPoint) {
-      rgb = (static_cast<uint32_t>(255) << 16) | (static_cast<uint32_t>(0) << 8) |
-            static_cast<uint32_t>(0); // R=255, G=0, B=0
+      if (mapPoint->isLocalPoint) {
+        rgb = (static_cast<uint32_t>(255) << 16) | (static_cast<uint32_t>(0) << 8) |
+              static_cast<uint32_t>(0); // R=255, G=0, B=0
+      }
+      std::memcpy(&(*iter_rgb), &rgb, sizeof(uint32_t));
+
+      ++iter_x;
+      ++iter_y;
+      ++iter_z;
+      ++iter_rgb;
     }
-    std::memcpy(&(*iter_rgb), &rgb, sizeof(uint32_t));
 
-    ++iter_x;
-    ++iter_y;
-    ++iter_z;
-    ++iter_rgb;
+    pointCloud.header.frame_id = "camera_optical_link";
+    pointCloud.header.stamp = clock_->now();
+    pointCloudPub_->publish(pointCloud);
+
+    pointCloudMsg_ = pointCloud;
+    map_->setRequiredViewerUpdated(false);
+  } else {
+    pointCloudPub_->publish(pointCloudMsg_);
   }
-
-  pointCloud.header.frame_id = "camera_optical_link";
-  pointCloud.header.stamp = clock_->now();
-  pointCloudPub_->publish(pointCloud);
 }
 
 void Viewer::pathUpdate() {

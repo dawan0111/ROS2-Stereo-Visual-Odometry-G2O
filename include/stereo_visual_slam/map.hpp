@@ -16,11 +16,15 @@ public:
   bool addKeyframe(std::shared_ptr<Frame> frame);
   bool removeActiveKeyframe(int16_t frameId);
   bool removeActiveMapPoint(u_int32_t mapPointId);
+  void cleanMap();
 
   KeyFrameType &getActiveKeyFrames();
   KeyFrameType &getKeyFrames();
   MapPointType &getActiveMapPoints();
   MapPointType &getMapPoints();
+
+  bool getRequiredViewerUpdated() { return requiredViewerUpdated_; }
+  void setRequiredViewerUpdated(bool flag) { requiredViewerUpdated_ = flag; }
 
 private:
   MapPointType mapPointPtrs_;
@@ -29,6 +33,8 @@ private:
   KeyFrameType activeKeyFramePtrs_;
 
   int16_t localWindowSize_;
+
+  bool requiredViewerUpdated_ = true;
 };
 } // namespace StereoSLAM
 

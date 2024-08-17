@@ -8,6 +8,7 @@ bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
     mapPointPtrs_[mapPoint->id] = mapPoint;
     activeMapPointPtrs_[mapPoint->id] = mapPoint;
 
+    setRequiredViewerUpdated(true);
     return true;
   }
 
@@ -22,6 +23,8 @@ bool Map::addKeyframe(std::shared_ptr<Frame> frame) {
     if (localWindowSize_ < activeKeyFramePtrs_.size()) {
       removeActiveKeyframe(activeKeyFramePtrs_.begin()->first);
     }
+
+    setRequiredViewerUpdated(true);
     return true;
   }
 
@@ -31,18 +34,36 @@ bool Map::addKeyframe(std::shared_ptr<Frame> frame) {
 bool Map::removeActiveKeyframe(int16_t frameId) {
   auto it = activeKeyFramePtrs_.find(frameId);
   if (it != activeKeyFramePtrs_.end()) {
+    std::cout << "Remove Active Frame: " << frameId << std::endl;
     auto &frame = activeKeyFramePtrs_[frameId];
     for (auto &feature : frame->featurePtrs) {
       if (!feature->mapPointPtr.expired()) {
         auto mapPoint = feature->mapPointPtr.lock();
+        if (feature->framePtr.lock()->frameId == 3) {
+          std::cout << "MapPointId: " << mapPoint->id << std::endl;
+        }
         mapPoint->removeObserve(feature);
-        removeActiveMapPoint(mapPoint->id);
       }
     }
     activeKeyFramePtrs_.erase(it);
+    cleanMap();
     return true;
   }
   return false;
+}
+
+void Map::cleanMap() {
+  for (auto iter = activeMapPointPtrs_.begin(); iter != activeMapPointPtrs_.end();) {
+    if (iter->second->id <= 100) {
+      std::cout << "Id: " << iter->second->id << ", Obs: " << iter->second->getObservationCount() << std::endl;
+    }
+    if (iter->second->getObservationCount() == 0) {
+      iter->second->isLocalPoint = false;
+      iter = activeMapPointPtrs_.erase(iter);
+    } else {
+      ++iter;
+    }
+  }
 }
 
 bool Map::removeActiveMapPoint(u_int32_t mapPointId) {

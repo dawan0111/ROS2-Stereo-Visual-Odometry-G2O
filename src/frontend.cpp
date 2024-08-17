@@ -9,7 +9,7 @@ Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map
 }
 
 bool Frontend::step(std::shared_ptr<Frame> frame) {
-  std::cout << "Input Frame" << std::endl;
+  // std::cout << "Input Frame" << std::endl;
   currentFrame_ = frame;
 
   if (status_ == Status::INIT) {
@@ -25,11 +25,10 @@ bool Frontend::step(std::shared_ptr<Frame> frame) {
 void Frontend::tracking() {
   auto trackingFeatureCount = trackingFeature();
   auto inlierFeatureCount = estimatePose();
-  std::cout << "Tracking: " << trackingFeatureCount << "/ Inliers: " << inlierFeatureCount << std::endl;
+  // std::cout << "Tracking: " << trackingFeatureCount << "/ Inliers: " << inlierFeatureCount << std::endl;
 
   if (inlierFeatureCount <= 70) {
     std::cout << "Set Keyframe #" << currentFrame_->frameId << std::endl;
-    std::cout << "Pose: " << currentFrame_->T_wc.matrix3x4() << std::endl;
 
     updateObservation();
 
@@ -41,6 +40,17 @@ void Frontend::tracking() {
     createLeftFeature();
     matchInRight();
     createMapPoint();
+  }
+
+  if (currentFrame_->frameId == 3) {
+    for (auto &feature : currentFrame_->featurePtrs) {
+      if (!feature->mapPointPtr.expired()) {
+        auto mapPoint = feature->mapPointPtr.lock();
+        if (feature->framePtr.lock()->frameId == 3) {
+          std::cout << "MapPointId: " << mapPoint->id << std::endl;
+        }
+      }
+    }
   }
 }
 
@@ -124,7 +134,7 @@ int16_t Frontend::trackingFeature() {
 
   for (size_t i = 0; i < status.size(); ++i) {
     const auto &prevKeypoint = prevFrame_->featurePtrs[i];
-    if (status[i] && prevKeypoint->mapPointPtr.lock() != nullptr) {
+    if (status[i] && !prevKeypoint->mapPointPtr.expired()) {
       Feature::Ptr feat(
           new Feature(currentFrame_, cv::KeyPoint(currKeypoints[i].x, currKeypoints[i].y, 1.0), prevKeypoints[i]));
       feat->mapPointPtr = prevKeypoint->mapPointPtr;
@@ -144,7 +154,7 @@ void Frontend::createMapPoint() {
   std::vector<Feature::Ptr> features;
 
   for (int i = 0; i < currentFrame_->featurePtrs.size(); ++i) {
-    if (currentFrame_->rightFeaturePtrs[i] != nullptr) {
+    if (currentFrame_->rightFeaturePtrs[i] != nullptr && currentFrame_->featurePtrs[i]->mapPointPtr.expired()) {
       auto &feature = currentFrame_->featurePtrs[i];
       auto &rightFeature = currentFrame_->rightFeaturePtrs[i];
 
@@ -170,10 +180,6 @@ void Frontend::createMapPoint() {
   cv::triangulatePoints(T1, T2, leftPoints, rightPoints, worldHomoPoints);
 
   for (int i = 0; i < worldHomoPoints.cols; ++i) {
-    if (currentFrame_->featurePtrs[i]->mapPointPtr.lock() != nullptr) {
-      continue;
-    }
-
     cv::Mat x = worldHomoPoints.col(i);
     Eigen::Vector4d homogenousWorldPoint = Eigen::Vector4d::Identity();
     Eigen::Vector3d worldPoint = Eigen::Vector3d::Zero();
@@ -185,7 +191,7 @@ void Frontend::createMapPoint() {
     homogenousWorldPoint(2) = x.at<float>(2, 0);
     homogenousWorldPoint(3) = 1.0;
 
-    if (homogenousWorldPoint(2) > 0) {
+    if (homogenousWorldPoint(2) > 0 && homogenousWorldPoint(2) <= 50) {
       homogenousWorldPoint = framePose * homogenousWorldPoint;
 
       worldPoint(0) = homogenousWorldPoint(0);
@@ -202,7 +208,7 @@ void Frontend::createMapPoint() {
     }
   }
 
-  std::cout << "Find Landmark: " << landmarkCount << std::endl;
+  // std::cout << "Find Landmark: " << landmarkCount << std::endl;
 }
 
 int16_t Frontend::estimatePose() {
@@ -269,9 +275,8 @@ int16_t Frontend::estimatePose() {
 }
 
 void Frontend::updateObservation() {
-  int16_t count = 0;
   for (auto &feature : currentFrame_->featurePtrs) {
-    if (feature->mapPointPtr.lock() != nullptr) {
+    if (!feature->mapPointPtr.expired()) {
       auto mapPointPtr = feature->mapPointPtr.lock();
       mapPointPtr->addObserve(feature);
     }
@@ -286,7 +291,7 @@ void Frontend::createFbow() {
   }
   orb_->compute(currentFrame_->imageL, keyPoints, descriptors);
   currentFrame_->briefDesc_ = descriptors;
-  std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
-  std::cout << "keyPoint size: " << keyPoints.size() << std::endl;
+  // std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
+  // std::cout << "keyPoint size: " << keyPoints.size() << std::endl;
 }
 } // namespace StereoSLAM

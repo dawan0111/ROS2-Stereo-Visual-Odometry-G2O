@@ -122,6 +122,7 @@ void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
     activeMapPoints[id]->setWorldPoint(pos);
   }
 
+  map_->setRequiredViewerUpdated(true);
   optimizer_->clear();
 }
 

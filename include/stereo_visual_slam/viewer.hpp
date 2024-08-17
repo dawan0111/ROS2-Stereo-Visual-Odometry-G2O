@@ -34,6 +34,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr debugImagePub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointCloudPub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pathPub_;
+
+  sensor_msgs::msg::PointCloud2 pointCloudMsg_;
 };
 } // namespace StereoSLAM
 
