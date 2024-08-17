@@ -11,7 +11,7 @@ Viewer::Viewer(std::shared_ptr<Map> map, std::shared_ptr<PinholeCamera> stereoCa
 }
 
 void Viewer::update() {
-  mapPointUpdate();
+  // mapPointUpdate();
   pathUpdate();
 }
 

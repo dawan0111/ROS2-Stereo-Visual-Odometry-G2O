@@ -52,7 +52,7 @@ void Backend::optimize(Map::KeyFrameType &activeKeyframes, Map::MapPointType &ac
   }
 
   for (auto &[id, mapPoint] : activeMapPoints) {
-    int16_t mapPointId = keyFrameSize + id;
+    u_int32_t mapPointId = keyFrameSize + id;
     g2o::VertexPointXYZ *vertex = new g2o::VertexPointXYZ();
     vertex->setId(mapPointId);
     vertex->setMarginalized(true);
