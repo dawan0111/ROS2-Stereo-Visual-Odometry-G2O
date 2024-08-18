@@ -6,7 +6,7 @@ Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map
     : stereoCam_(stereoCam), map_(map), backend_(backend), vocabulary_(vocabulary) {
   std::cout << "FrontEnd Constructor" << std::endl;
   gftt_ = cv::GFTTDetector::create(150, 0.01, 20);
-  orb_ = cv::ORB::create();
+  orb_ = cv::ORB::create(2000);
 }
 
 bool Frontend::step(std::shared_ptr<Frame> frame) {
@@ -276,13 +276,11 @@ void Frontend::updateObservation() {
 void Frontend::createFbow() {
   std::vector<cv::KeyPoint> keyPoints;
   cv::Mat descriptors;
-  for (auto &feature : currentFrame_->featurePtrs) {
-    keyPoints.push_back(feature->point);
-  }
-  orb_->compute(currentFrame_->imageL, keyPoints, descriptors);
+
+  orb_->detectAndCompute(currentFrame_->imageL, cv::Mat(), keyPoints, descriptors);
 
   currentFrame_->fBowFeature = vocabulary_->transform(descriptors);
   currentFrame_->briefDesc = descriptors;
-  std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
+  // std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
 }
 } // namespace StereoSLAM

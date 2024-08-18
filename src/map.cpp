@@ -21,12 +21,11 @@ bool Map::addKeyframe(std::shared_ptr<Frame> frame) {
     if (keyFramePtrs_.size() >= 1) {
       const auto &prevKeyframe = (--keyFramePtrs_.end())->second;
       auto score = prevKeyframe->fBowFeature.score(prevKeyframe->fBowFeature, frame->fBowFeature);
-      std::cout << "Fbow Score: " << score << std::endl;
+      std::cout << "Prev: " << prevKeyframe->frameId << ", Curr: " << frame->frameId << std::endl;
+      std::cout << "Match score: " << score << std::endl;
     }
     keyFramePtrs_[frame->frameId] = frame;
     activeKeyFramePtrs_[frame->frameId] = frame;
-
-    std::cout << "Add ID: " << frame->frameId << std::endl;
 
     if (localWindowSize_ < activeKeyFramePtrs_.size()) {
       removeActiveKeyframe(activeKeyFramePtrs_.begin()->first);
