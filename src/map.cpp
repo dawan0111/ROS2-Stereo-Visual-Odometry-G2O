@@ -2,7 +2,9 @@
 
 namespace StereoSLAM {
 Map::Map(std::shared_ptr<fbow::Vocabulary> vocabulary, int16_t localWindowSize)
-    : localWindowSize_(localWindowSize), vocabulary_(vocabulary) {}
+    : localWindowSize_(localWindowSize), vocabulary_(vocabulary) {
+  mapThread_ = std::thread(std::bind(&Map::MapProducerLoop, this));
+}
 
 bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
   if (mapPointPtrs_.find(mapPoint->id) == mapPointPtrs_.end()) {
@@ -18,12 +20,18 @@ bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
 
 bool Map::addKeyframe(std::shared_ptr<Frame> frame) {
   if (keyFramePtrs_.find(frame->frameId) == keyFramePtrs_.end()) {
-    if (keyFramePtrs_.size() >= 1) {
-      const auto &prevKeyframe = (--keyFramePtrs_.end())->second;
-      auto score = prevKeyframe->fBowFeature.score(prevKeyframe->fBowFeature, frame->fBowFeature);
-      std::cout << "Prev: " << prevKeyframe->frameId << ", Curr: " << frame->frameId << std::endl;
-      std::cout << "Match score: " << score << std::endl;
-    }
+    // if (keyFramePtrs_.size() >= 1) {
+
+    //   for (auto &[id, targetFrame] : keyFramePtrs_) {
+    //     auto score = frame->fBowFeature.score(frame->fBowFeature, targetFrame->fBowFeature);
+
+    //     if (score >= 0.015 && activeKeyFramePtrs_.find(id) == activeKeyFramePtrs_.end()) {
+    //       std::cout << "Loop back" << std::endl;
+    //       std::cout << "Target: " << targetFrame->frameId << ", Curr: " << frame->frameId << std::endl;
+    //       std::cout << "Match score: " << score << std::endl;
+    //     }
+    //   }
+    // }
     keyFramePtrs_[frame->frameId] = frame;
     activeKeyFramePtrs_[frame->frameId] = frame;
 
@@ -80,9 +88,10 @@ bool Map::removeActiveMapPoint(u_int32_t mapPointId) {
   return false;
 }
 
-Map::KeyFrameType &Map::getActiveKeyFrames() { return activeKeyFramePtrs_; }
-Map::KeyFrameType &Map::getKeyFrames() { return keyFramePtrs_; }
-
-Map::MapPointType &Map::getActiveMapPoints() { return activeMapPointPtrs_; }
-Map::MapPointType &Map::getMapPoints() { return mapPointPtrs_; }
+void Map::MapProducerLoop() {
+  while (true) {
+    std::unique_lock<std::mutex> lock(dataMutex_);
+    cv_.wait(lock, [this]() { return frameQueue_.size() > 0; });
+  }
+}
 } // namespace StereoSLAM

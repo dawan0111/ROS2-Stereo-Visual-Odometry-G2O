@@ -3,7 +3,9 @@
 
 #include "stereo_visual_slam/frame.hpp"
 #include "stereo_visual_slam/map_point.hpp"
+#include <condition_variable>
 #include <fbow/fbow.h>
+#include <thread>
 namespace StereoSLAM {
 class Map {
 
@@ -18,13 +20,16 @@ public:
   bool removeActiveMapPoint(u_int32_t mapPointId);
   void cleanMap();
 
-  KeyFrameType &getActiveKeyFrames();
-  KeyFrameType &getKeyFrames();
-  MapPointType &getActiveMapPoints();
-  MapPointType &getMapPoints();
+  KeyFrameType &getActiveKeyFrames() { return activeKeyFramePtrs_; }
+  KeyFrameType &getKeyFrames() { return keyFramePtrs_; }
+
+  MapPointType &getActiveMapPoints() { return activeMapPointPtrs_; }
+  MapPointType &getMapPoints() { return mapPointPtrs_; }
 
   bool getRequiredViewerUpdated() { return requiredViewerUpdated_; }
   void setRequiredViewerUpdated(bool flag) { requiredViewerUpdated_ = flag; }
+
+  void MapProducerLoop();
 
 private:
   MapPointType mapPointPtrs_;
@@ -35,6 +40,10 @@ private:
   int16_t localWindowSize_;
 
   std::shared_ptr<fbow::Vocabulary> vocabulary_;
+  std::thread mapThread_;
+  std::mutex dataMutex_;
+  std::condition_variable cv_;
+  std::queue<Frame::Ptr> frameQueue_;
 
   bool requiredViewerUpdated_ = true;
 };

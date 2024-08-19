@@ -36,7 +36,7 @@ void Frontend::tracking() {
     currentFrame_->setKeyFrame();
     createFbow();
     map_->addKeyframe(currentFrame_);
-    // backend_->updateMap();
+    backend_->updateMap();
 
     createLeftFeature();
     matchInRight();

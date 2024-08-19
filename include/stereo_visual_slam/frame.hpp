@@ -12,6 +12,7 @@ class Feature;
 namespace StereoSLAM {
 class Frame {
 public:
+  using Ptr = std::shared_ptr<Frame>;
   Frame();
   void setKeyFrame();
   const int32_t frameId;
