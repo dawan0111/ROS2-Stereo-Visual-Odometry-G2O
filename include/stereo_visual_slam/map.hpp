@@ -40,10 +40,6 @@ private:
   int16_t localWindowSize_;
 
   std::shared_ptr<fbow::Vocabulary> vocabulary_;
-  std::thread mapThread_;
-  std::mutex dataMutex_;
-  std::condition_variable cv_;
-  std::queue<Frame::Ptr> frameQueue_;
 
   bool requiredViewerUpdated_ = true;
 };

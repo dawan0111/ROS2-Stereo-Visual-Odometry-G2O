@@ -2,9 +2,7 @@
 
 namespace StereoSLAM {
 Map::Map(std::shared_ptr<fbow::Vocabulary> vocabulary, int16_t localWindowSize)
-    : localWindowSize_(localWindowSize), vocabulary_(vocabulary) {
-  mapThread_ = std::thread(std::bind(&Map::MapProducerLoop, this));
-}
+    : localWindowSize_(localWindowSize), vocabulary_(vocabulary) {}
 
 bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
   if (mapPointPtrs_.find(mapPoint->id) == mapPointPtrs_.end()) {
@@ -86,12 +84,5 @@ bool Map::removeActiveMapPoint(u_int32_t mapPointId) {
     }
   }
   return false;
-}
-
-void Map::MapProducerLoop() {
-  while (true) {
-    std::unique_lock<std::mutex> lock(dataMutex_);
-    cv_.wait(lock, [this]() { return frameQueue_.size() > 0; });
-  }
 }
 } // namespace StereoSLAM
