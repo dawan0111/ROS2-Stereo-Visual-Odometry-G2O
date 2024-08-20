@@ -9,7 +9,6 @@
 #include "stereo_visual_slam/pinhole_camera.hpp"
 #include "stereo_visual_slam/viewer.hpp"
 #include <cv_bridge/cv_bridge.h>
-#include <fbow/fbow.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <message_filters/subscriber.h>

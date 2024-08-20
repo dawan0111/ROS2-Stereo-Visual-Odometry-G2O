@@ -1,8 +1,7 @@
 #include "stereo_visual_slam/map.hpp"
 
 namespace StereoSLAM {
-Map::Map(std::shared_ptr<fbow::Vocabulary> vocabulary, int16_t localWindowSize)
-    : localWindowSize_(localWindowSize), vocabulary_(vocabulary) {}
+Map::Map(int16_t localWindowSize) : localWindowSize_(localWindowSize) {}
 
 bool Map::addMapPoint(std::shared_ptr<MapPoint> mapPoint) {
   if (mapPointPtrs_.find(mapPoint->id) == mapPointPtrs_.end()) {

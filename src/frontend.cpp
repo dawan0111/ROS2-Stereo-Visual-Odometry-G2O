@@ -1,9 +1,8 @@
 #include "stereo_visual_slam/frontend.hpp"
 
 namespace StereoSLAM {
-Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map, std::shared_ptr<Backend> backend,
-                   std::shared_ptr<fbow::Vocabulary> vocabulary)
-    : stereoCam_(stereoCam), map_(map), backend_(backend), vocabulary_(vocabulary) {
+Frontend::Frontend(std::shared_ptr<PinholeCamera> stereoCam, std::shared_ptr<Map> map, std::shared_ptr<Backend> backend)
+    : stereoCam_(stereoCam), map_(map), backend_(backend) {
   std::cout << "FrontEnd Constructor" << std::endl;
   gftt_ = cv::GFTTDetector::create(150, 0.01, 20);
   orb_ = cv::ORB::create(2000);
@@ -34,9 +33,9 @@ void Frontend::tracking() {
     updateObservation();
 
     currentFrame_->setKeyFrame();
-    createFbow();
+    // createFbow();
     map_->addKeyframe(currentFrame_);
-    backend_->updateMap();
+    // backend_->updateMap();
 
     createLeftFeature();
     matchInRight();
@@ -52,7 +51,6 @@ void Frontend::init() {
   createMapPoint();
 
   currentFrame_->setKeyFrame();
-  createFbow();
   map_->addKeyframe(currentFrame_);
 
   std::cout << "Frontend: Init" << std::endl;
@@ -273,14 +271,14 @@ void Frontend::updateObservation() {
   }
 }
 
-void Frontend::createFbow() {
-  std::vector<cv::KeyPoint> keyPoints;
-  cv::Mat descriptors;
+// void Frontend::createFbow() {
+//   std::vector<cv::KeyPoint> keyPoints;
+//   cv::Mat descriptors;
 
-  orb_->detectAndCompute(currentFrame_->imageL, cv::Mat(), keyPoints, descriptors);
+//   orb_->detectAndCompute(currentFrame_->imageL, cv::Mat(), keyPoints, descriptors);
 
-  currentFrame_->fBowFeature = vocabulary_->transform(descriptors);
-  currentFrame_->briefDesc = descriptors;
-  // std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
-}
+//   currentFrame_->fBowFeature = vocabulary_->transform(descriptors);
+//   currentFrame_->briefDesc = descriptors;
+//   // std::cout << "Create descriptor) cols: " << descriptors.cols << ", rows: " << descriptors.rows << std::endl;
+// }
 } // namespace StereoSLAM

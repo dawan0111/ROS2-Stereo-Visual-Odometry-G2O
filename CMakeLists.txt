@@ -20,7 +20,6 @@ find_package(cv_bridge REQUIRED)
 find_package(g2o REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Sophus REQUIRED)
-find_package(fbow REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
@@ -46,7 +45,6 @@ target_link_libraries(${library_name}
   g2o_solver_dense
   g2o_solver_csparse
   Sophus::Sophus
-  fbow
 )
 
 ament_target_dependencies(${library_name}
