@@ -13,6 +13,10 @@ An educational ROS2 stereo visual odometry system utilizing local bundle adjustm
 - **Educational Focus**: Designed to provide hands-on experience with visual odometry techniques without the complexity of performance-optimized code.
 
 ## Result
+<p align="center">
+  <img src="https://i.postimg.cc/y8tSY3z1/2024-08-20-20-47-13.png" />
+</p>
+
 
 ## Dependencies
 
