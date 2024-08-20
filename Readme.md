@@ -1,5 +1,8 @@
 # ROS2 Stereo Visual Odometry with Local Bundle Adjustment Using g2o
-[![stereo-vo-local-BA.gif](https://i.postimg.cc/d18QFLJx/stereo-vo-local-BA.gif)](https://postimg.cc/tZ4GtRZ3)
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=mtpsgGiLuTo" target="_blank"><img src="https://i.postimg.cc/d18QFLJx/stereo-vo-local-BA.gif"></a>
+</p>
 
 An educational ROS2 stereo visual odometry system utilizing local bundle adjustment with the g2o library. This project is designed as a learning tool, offering insights into visual odometry and optimization techniques without aiming for high-performance enhancements. Based on concepts discussed in "SLAMBook2 Chapter 13".
 
